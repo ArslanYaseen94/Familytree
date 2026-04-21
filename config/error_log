@@ -1,0 +1,28 @@
+[15-Aug-2024 02:17:06 UTC] PHP Fatal error:  Uncaught Error: Call to undefined function env() in /home/nextcomenet/public_html/config/mail.php:16
+Stack trace:
+#0 {main}
+  thrown in /home/nextcomenet/public_html/config/mail.php on line 16
+[15-Aug-2024 02:20:06 UTC] PHP Fatal error:  Uncaught Error: Call to undefined function env() in /home/nextcomenet/public_html/config/services.php:18
+Stack trace:
+#0 {main}
+  thrown in /home/nextcomenet/public_html/config/services.php on line 18
+[15-Aug-2024 02:20:09 UTC] PHP Fatal error:  Uncaught Error: Call to undefined function env() in /home/nextcomenet/public_html/config/broadcasting.php:18
+Stack trace:
+#0 {main}
+  thrown in /home/nextcomenet/public_html/config/broadcasting.php on line 18
+[15-Aug-2024 02:20:16 UTC] PHP Fatal error:  Uncaught Error: Call to undefined function env() in /home/nextcomenet/public_html/config/queue.php:16
+Stack trace:
+#0 {main}
+  thrown in /home/nextcomenet/public_html/config/queue.php on line 16
+[15-Aug-2024 02:23:16 UTC] PHP Fatal error:  Uncaught Error: Call to undefined function resource_path() in /home/nextcomenet/public_html/config/view.php:17
+Stack trace:
+#0 {main}
+  thrown in /home/nextcomenet/public_html/config/view.php on line 17
+[15-Aug-2024 02:25:20 UTC] PHP Fatal error:  Uncaught Error: Call to undefined function env() in /home/nextcomenet/public_html/config/filesystems.php:16
+Stack trace:
+#0 {main}
+  thrown in /home/nextcomenet/public_html/config/filesystems.php on line 16
+[15-Aug-2024 02:50:48 UTC] PHP Fatal error:  Uncaught Error: Call to undefined function env() in /home/nextcomenet/public_html/config/hashing.php:32
+Stack trace:
+#0 {main}
+  thrown in /home/nextcomenet/public_html/config/hashing.php on line 32

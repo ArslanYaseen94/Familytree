@@ -1,0 +1,4 @@
+[15-Aug-2024 02:20:13 UTC] PHP Fatal error:  Uncaught Error: Class "Illuminate\Support\Facades\Artisan" not found in /home/nextcomenet/public_html/routes/console.php:17
+Stack trace:
+#0 {main}
+  thrown in /home/nextcomenet/public_html/routes/console.php on line 17

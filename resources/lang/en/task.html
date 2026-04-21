@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Login Page</title>
+  
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body {
+      background-color: #f8f9fa;
+    }
+    .login-container {
+      min-height: 100vh;
+    }
+    .login-box {
+      background: white;
+      border-radius: 20px;
+      padding: 40px;
+      box-shadow: 0px 5px 25px rgba(0, 0, 0, 0.1);
+    }
+    .form-control {
+      background-color: #f4f0ff;
+      border: none;
+      border-radius: 10px;
+      padding: 12px 15px;
+    }
+    .form-control:focus {
+      box-shadow: none;
+      border-color: #7b61ff;
+    }
+    .login-btn {
+      background: linear-gradient(to right, #7b61ff, #9378ff);
+      border: none;
+      color: white;
+      padding: 12px;
+      border-radius: 10px;
+      width: 100%;
+      font-weight: bold;
+      margin-top: 15px;
+    }
+    .login-btn:hover {
+      background: #6b52e3;
+    }
+    .divider {
+      margin: 30px 0;
+      text-align: center;
+      font-weight: bold;
+    }
+    .social-btn {
+      width: 100%;
+      padding: 12px;
+      border-radius: 10px;
+      background-color: #fff;
+      border: 1px solid #ddd;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .social-btn img {
+      height: 20px;
+      margin-right: 10px;
+    }
+    .right-box {
+      background: linear-gradient(135deg, #7b61ff, #9378ff);
+      color: white;
+      border-radius: 20px;
+      padding: 40px;
+      position: relative;
+    }
+    .right-box img {
+      max-width: 100%;
+      border-radius: 15px;
+    }
+    .bubble {
+      background-color: white;
+      color: #7b61ff;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: absolute;
+      left: -20px;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+  </style>
+</head>
+<body>
+
+<div class="container-fluid login-container d-flex align-items-center justify-content-center">
+  <div class="row w-75 shadow-lg rounded-4 overflow-hidden">
+    
+    <div class="col-md-6 bg-white login-box">
+      <h3 class="fw-bold mb-3">LOGIN</h3>
+      <p class="text-muted mb-4">How to i get started lorem ipsum dolor at?</p>
+
+      <div class="mb-3">
+        <input type="text" class="form-control" placeholder="Username">
+      </div>
+      <div class="mb-3">
+        <input type="password" class="form-control" placeholder="Password">
+      </div>
+      <button class="login-btn">Login Now</button>
+
+      <div class="divider">Login with Others</div>
+
+      <button class="social-btn">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/Google_%22G%22_Logo.svg/512px-Google_%22G%22_Logo.svg.png" alt="Google">
+        Login with Google
+      </button>
+      <button class="social-btn">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/0/05/Facebook_Logo_%282019%29.png" alt="Facebook">
+        Login with Facebook
+      </button>
+    </div>
+    <div class="col-md-6 d-flex align-items-center justify-content-center position-relative right-box text-center">
+      <div>
+        <div class="bubble">
+          <span>⚡</span>
+        </div>
+        <p class="fs-4 fw-bold">Very good works are <br>waiting for you Login<br> Now!!!</p>
+        <img src="https://www.kindpng.com/picc/m/495-4952535_create-digital-profile-icon-blue-user-profile-icon.png" alt="login illustration" class="mt-3" style="max-height: 250px;">
+      </div>
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>

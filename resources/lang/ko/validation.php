@@ -1,0 +1,98 @@
+<?php
+
+return [
+
+    'accepted' => ':attribute 항목을 수락해야 합니다.',
+    'accepted_if' => ':other 값이 :value일 때 :attribute 항목을 수락해야 합니다.',
+    'active_url' => ':attribute는 유효한 URL이 아닙니다.',
+    'after' => ':attribute는 :date 이후 날짜여야 합니다.',
+    'after_or_equal' => ':attribute는 :date와 같거나 이후의 날짜여야 합니다.',
+    'alpha' => ':attribute는 문자만 포함해야 합니다.',
+    'alpha_dash' => ':attribute는 문자, 숫자, 대시(-), 밑줄(_)만 포함해야 합니다.',
+    'alpha_num' => ':attribute는 문자와 숫자만 포함해야 합니다.',
+    'array' => ':attribute는 배열이어야 합니다.',
+    'ascii' => ':attribute는 ASCII 문자만 포함해야 합니다.',
+    'before' => ':attribute는 :date 이전 날짜여야 합니다.',
+    'before_or_equal' => ':attribute는 :date와 같거나 이전의 날짜여야 합니다.',
+    'between' => [
+        'array' => ':attribute 항목 수는 :min에서 :max 사이여야 합니다.',
+        'file' => ':attribute 파일 크기는 :min에서 :max KB 사이여야 합니다.',
+        'numeric' => ':attribute 값은 :min에서 :max 사이여야 합니다.',
+        'string' => ':attribute 길이는 :min에서 :max자 사이여야 합니다.',
+    ],
+    'boolean' => ':attribute 필드는 true 또는 false 여야 합니다.',
+    'confirmed' => ':attribute 확인 항목이 일치하지 않습니다.',
+    'current_password' => '비밀번호가 올바르지 않습니다.',
+    'date' => ':attribute는 유효한 날짜가 아닙니다.',
+    'date_equals' => ':attribute는 :date와 같은 날짜여야 합니다.',
+    'date_format' => ':attribute 형식은 :format와 일치하지 않습니다.',
+    'decimal' => ':attribute는 소수점 이하 :decimal자리여야 합니다.',
+    'declined' => ':attribute는 거부되어야 합니다.',
+    'different' => ':attribute와 :other는 서로 달라야 합니다.',
+    'digits' => ':attribute는 :digits자리 숫자여야 합니다.',
+    'digits_between' => ':attribute는 :min에서 :max자리 숫자여야 합니다.',
+    'email' => ':attribute는 유효한 이메일 주소여야 합니다.',
+    'file' => ':attribute는 파일이어야 합니다.',
+    'filled' => ':attribute 필드는 값이 있어야 합니다.',
+    'gt' => [
+        'array' => ':attribute는 :value개보다 많아야 합니다.',
+        'file' => ':attribute는 :valueKB보다 커야 합니다.',
+        'numeric' => ':attribute는 :value보다 커야 합니다.',
+        'string' => ':attribute는 :value자보다 길어야 합니다.',
+    ],
+    'gte' => [
+        'array' => ':attribute는 :value개 이상이어야 합니다.',
+        'file' => ':attribute는 :valueKB 이상이어야 합니다.',
+        'numeric' => ':attribute는 :value 이상이어야 합니다.',
+        'string' => ':attribute는 :value자 이상이어야 합니다.',
+    ],
+    'image' => ':attribute는 이미지여야 합니다.',
+    'in' => '선택한 :attribute는 유효하지 않습니다.',
+    'integer' => ':attribute는 정수여야 합니다.',
+    'ip' => ':attribute는 유효한 IP 주소여야 합니다.',
+    'json' => ':attribute는 유효한 JSON 문자열이어야 합니다.',
+    'max' => [
+        'array' => ':attribute는 :max개를 초과할 수 없습니다.',
+        'file' => ':attribute는 :maxKB를 초과할 수 없습니다.',
+        'numeric' => ':attribute는 :max보다 클 수 없습니다.',
+        'string' => ':attribute는 :max자보다 클 수 없습니다.',
+    ],
+    'min' => [
+        'array' => ':attribute는 최소 :min개여야 합니다.',
+        'file' => ':attribute는 최소 :minKB여야 합니다.',
+        'numeric' => ':attribute는 최소 :min이어야 합니다.',
+        'string' => ':attribute는 최소 :min자여야 합니다.',
+    ],
+    'not_in' => '선택한 :attribute는 유효하지 않습니다.',
+    'numeric' => ':attribute는 숫자여야 합니다.',
+    'present' => ':attribute 필드는 있어야 합니다.',
+    'regex' => ':attribute 형식이 잘못되었습니다.',
+    'required' => ':attribute 필드는 필수입니다.',
+    'same' => ':attribute와 :other는 일치해야 합니다.',
+    'size' => [
+        'array' => ':attribute는 :size개 항목이어야 합니다.',
+        'file' => ':attribute는 :sizeKB여야 합니다.',
+        'numeric' => ':attribute는 :size여야 합니다.',
+        'string' => ':attribute는 :size자여야 합니다.',
+    ],
+    'string' => ':attribute는 문자열이어야 합니다.',
+    'timezone' => ':attribute는 유효한 시간대여야 합니다.',
+    'unique' => ':attribute는 이미 사용 중입니다.',
+    'uploaded' => ':attribute 업로드에 실패했습니다.',
+    'url' => ':attribute는 유효한 URL이어야 합니다.',
+
+    'custom' => [
+        'email' => [
+            'required' => '이메일 주소는 필수입니다.',
+        ],
+        'password' => [
+            'required' => '비밀번호는 필수입니다.',
+        ],
+    ],
+
+    'attributes' => [
+        'email' => '이메일 주소',
+        'password' => '비밀번호',
+    ],
+
+];

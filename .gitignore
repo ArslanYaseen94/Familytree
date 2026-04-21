@@ -1,0 +1,44 @@
+/.idea
+/.vscode
+/.fleet
+
+# OS / junk
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# Laravel / PHP
+/.env
+/.env.*
+!/\.env\.example
+/vendor/
+/bootstrap/cache/*.php
+/storage/*.key
+/storage/app/public
+/storage/framework/cache/*
+/storage/framework/sessions/*
+/storage/framework/testing/*
+/storage/framework/views/*
+/storage/logs/*
+*.log
+
+# PHPUnit
+/.phpunit.result.cache
+
+# Composer
+/composer.phar
+/auth.json
+
+# Node / Vite
+/node_modules/
+/npm-debug.log*
+/yarn-debug.log*
+/yarn-error.log*
+/pnpm-debug.log*
+/public/build/
+
+# Misc
+/coverage/
