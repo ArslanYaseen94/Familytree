@@ -135,38 +135,36 @@ $generations = \App\Models\Generations::where(['is_active' => 1])->get();
 
     .member-card,
     .partner-card {
-        border: 1px solid var(--theme-color) !important;
-        height: 140px;
-        width: 143px;
-        margin: 5px;
-    }
-
-    .partner-card {
-        border: 3px solid var(--theme-color) !important;
-        height: 120px;
-        width: 140px;
-        border-radius: 70px;
-        margin: 5px;
+        border: 2px solid var(--theme-color) !important;
+        width: 120px;
+        margin: 0 auto;
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 12px;
         overflow: hidden;
-        display: flex;
-        align-items: center;
-        justify-content: center;
         text-align: center;
         position: relative;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.12);
     }
 
+    .partner-card .avatar-wrapper {
+        width: 60px;
+        height: 60px;
+        margin: 8px auto 4px;
+        border-radius: 50%;
+        overflow: hidden;
+        border: 2px solid var(--theme-color);
+    }
 
     .avatar {
-        width: 90%;
-        height: 90%;
+        width: 60px;
+        height: 60px;
         border-radius: 50%;
-        border: 3px solid var(--theme-color) !important;
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
+        border: 2px solid var(--theme-color) !important;
+        margin: 8px auto 4px;
+        overflow: hidden;
+        display: block;
+        position: relative;
     }
-
 
     .avatar img {
         width: 100%;
@@ -175,10 +173,46 @@ $generations = \App\Models\Generations::where(['is_active' => 1])->get();
         border-radius: 50%;
     }
 
-    .partner-card {
-        height: 134px !important;
-        width: 113px !important;
-        border-radius: 50% !important;
+    .card-details {
+        padding: 2px 6px 4px;
+        background: rgba(255, 255, 255, 0.97);
+    }
+
+    .card-details h4 {
+        font-size: 10px !important;
+        line-height: 1.3;
+        margin: 0 0 2px 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 110px;
+    }
+
+    .card-details p {
+        font-size: 8px !important;
+        line-height: 1.2;
+        margin: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        color: #555;
+    }
+
+    .icons-container {
+        display: flex;
+        justify-content: center;
+        gap: 6px;
+        padding: 3px 4px 6px;
+        background: rgba(255, 255, 255, 0.97);
+    }
+
+    .icons-container a {
+        font-size: 11px;
+        color: #555;
+    }
+
+    .icons-container a:hover {
+        color: var(--theme-color);
     }
 
     /* Responsive Adjustments */
@@ -516,7 +550,12 @@ $generations = \App\Models\Generations::where(['is_active' => 1])->get();
                 const rootNode = buildTree(flatData);
                 const root = d3.hierarchy(rootNode, d => d.children);
 
-                const treeLayout = d3.tree().size([2800 - 160, 800 - 80]);
+                const nodeCount = root.descendants().length;
+                const treeWidth = Math.max(2800, nodeCount * 180);
+                const treeHeight = Math.max(1200, root.height * 250 + 200);
+                const treeLayout = d3.tree()
+                    .size([treeWidth - 200, treeHeight - 200])
+                    .separation((a, b) => a.parent === b.parent ? 1.5 : 2);
                 treeLayout(root);
 
                 // Create links using the adjusted line-drawing logic
@@ -526,15 +565,17 @@ $generations = \App\Models\Generations::where(['is_active' => 1])->get();
                     .enter().append('path')
                     .attr('class', 'link')
                     .attr('d', d => {
-                        const startX = d.source.x;
-                        const startY = d.source.y + 220; // Adjust based on the bottom of the node card
-                        const endX = d.target.x;
-                        const endY = d.target.y - 20; // Adjust based on the top of the node card
+                        const startX = d.source.x + 50;
+                        const startY = d.source.y + 140; // Bottom of the card (foreignObject y:-10 + height:160 = 150, minus a bit)
+                        const endX = d.target.x + 50;
+                        const endY = d.target.y - 15; // Top of the child card
+
+                        const midY = (startY + endY) / 2;
 
                         // Check if the target node is not a partner (type 2) or ex-partner (type 3)
                         if ((d.target.data.type !== 2 && d.target.data.type !== 3) && d.source
                             .children && d.source.children.length > 0) {
-                            return `M${startX},${startY} H${endX} V${endY}`;
+                            return `M${startX},${startY} V${midY} H${endX} V${endY}`;
                         } else {
                             return ""; // Return an empty string to avoid drawing the line
                         }
@@ -553,35 +594,34 @@ $generations = \App\Models\Generations::where(['is_active' => 1])->get();
                     .attr('transform', d => `translate(${d.x},${d.y})`);
 
                 node.append('foreignObject')
-                    .attr('width', 200)
-                    .attr('height', 220)
+                    .attr('width', 130)
+                    .attr('height', 160)
+                    .attr('x', -15)
+                    .attr('y', -10)
                     .html(d => `
-                    <div class="card d-block border-0 shadow-xss rounded-3 mb-3 position-relative partner-card">
+                    <div class="partner-card">
                     ${
                     userHasImage === '1' ? `
-                        <div class="card-body d-block w-100 pe-2 pb-2 pt-1 text-left">
-                        
                             <figure class="avatar">
                                 ${d.data.photo ? 
-                                    `<img src="/assets/front-end/Memberimgs/${d.data.photo}" alt="image" class="w-100 h-100 bg-white rounded-circle">` 
+                                    `<img src="/assets/front-end/Memberimgs/${d.data.photo}" alt="image">` 
                                     : d.data.avatar ? 
-                                    `<img src="/assets/front-end/avatar/${d.data.avatar}.jpg" alt="image" class="w-100 h-100 bg-white rounded-circle">` 
+                                    `<img src="/assets/front-end/avatar/${d.data.avatar}.jpg" alt="image">` 
                                     : 
-                                    `<img src="/assets/front-end/default-avatar.jpg" alt="image" class="w-100 h-100 bg-white rounded-circle">`
+                                    `<img src="/assets/front-end/default-avatar.jpg" alt="image">`
                                 }
                             </figure>
-                        </div>
                         ` : ''
-        }
+         }
+                    <div class="card-details">
+                        <h4 class="fw-700">${d.data.firstname || ''} ${d.data.lastname || ''}</h4>
+                        ${d.data.birthdate ? `<p><strong>${birthLabel}:</strong> ${d.data.birthdate}</p>` : ''}
                     </div>
-                    <div class="card-details" style="margin-bottom: 15px;">
-                        <h4 class="fw-700 font-xsss mb-1" style="margin-top: -13px;">${d.data.firstname || ''} ${d.data.lastname || ''}</h4>
-                        ${d.data.birthdate ? `<p class="mb-1"><strong>${birthLabel}</strong> ${d.data.birthdate}</p>` : ''}
+                    <div class="icons-container">
+                        ${d.data.type == '1' || d.data.type == '4' ? `<a href="javascript:void(0)" data-toggle="modal" data-target="#addnewtree" data-id="${d.data.id}" data-parent-id="${d.data.parent_id}"><i class="feather-plus" title="Add"></i></a>` : ''}
+                        <a href="javascript:void(0)"><i class="feather-edit" title="Edit" data-id="${d.data.id}"></i></a>
+                        <a href="javascript:void(0)"><i class="feather-trash-2" title="Delete" data-id="${d.data.id}"></i></a>
                     </div>
-                    <div class="icons-container d-flex" style="margin-top: -13px;">
-                        ${d.data.type == '1' || d.data.type == '4' ? ` <a href="javascript:void(0)" data-toggle="modal" data-target="#addnewtree" data-id="${d.data.id}" data-parent-id="${d.data.parent_id}"><i class="feather-plus ms-2" title="Add"></i></a>` : ''}
-                        <a href="javascript:void(0)"><i class="feather-edit ms-2" title="Edit" data-id="${d.data.id}"></i></a>
-                        <a href="javascript:void(0)"><i class="feather-trash-2 ms-2" title="Delete" data-id="${d.data.id}"></i></a>
                     </div>
                 `);
 
@@ -589,11 +629,19 @@ $generations = \App\Models\Generations::where(['is_active' => 1])->get();
                 adjustNodesAndLinks(root);
 
                 // Adjust SVG dimensions dynamically based on the tree layout
-                const {
-                    x: maxX,
-                    y: maxY
-                } = d3.extent(root.descendants(), d => d.x);
-                svg.attr("viewBox", `0 0 ${Math.max(maxX + 160, 2800)} ${Math.max(maxY + 80, 800)}`);
+                let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+                root.descendants().forEach(d => {
+                    const pos = positionMap ? positionMap.get(d.data.id) : { x: d.x, y: d.y };
+                    const px = pos ? pos.x : d.x;
+                    const py = pos ? pos.y : d.y;
+                    if (px < minX) minX = px;
+                    if (px > maxX) maxX = px;
+                    if (py < minY) minY = py;
+                    if (py > maxY) maxY = py;
+                });
+                const vbWidth = Math.max(maxX + 300, 2800);
+                const vbHeight = Math.max(maxY + 300, 1200);
+                d3.select('#family-tree svg').attr('viewBox', `0 0 ${vbWidth} ${vbHeight}`);
             })
             .catch(error => {
                 console.error('Error fetching or processing data:', error);
@@ -681,15 +729,16 @@ $generations = \App\Models\Generations::where(['is_active' => 1])->get();
             return rootNode;
         }
 
+        var positionMap;
         function adjustNodesAndLinks(root) {
-            const ySpacing = 200;
-            const partnerSpacing = 70;
-            const exPartnerSpacing = -90;
+            const ySpacing = 250;
+            const partnerSpacing = 140;
+            const exPartnerSpacing = -140;
 
             const nodeMap = new Map();
             root.descendants().forEach(node => nodeMap.set(node.data.id, node));
 
-            const positionMap = new Map();
+            positionMap = new Map();
 
             function adjustNodePosition(node, offsetX) {
                 if (!node.children) node.children = [];
