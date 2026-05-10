@@ -21,6 +21,7 @@ use App\Http\Controllers\TypeController;
 use App\Http\Controllers\User\FamilyTreeController;
 use App\Http\Controllers\User\UserController;
 use App\Http\Controllers\User\UserRegisterController;
+use App\Http\Controllers\ChatbotController;
 use Illuminate\Support\Facades\Route;
 
 
@@ -100,6 +101,9 @@ Route::namespace('User')->group(function () {
             return view('user-view.settings.password');
         });
         Route::post('changepassword', 'UserprofileController@Password')->name('user.Password');
+
+        // Chatbot Route
+        Route::post('chatbot/chat', [ChatbotController::class, 'chat'])->name('chatbot.chat');
     });
 });
 Route::post('addfirstmember', [FamilyTreeController::class, "firstmemberstore"])->name('user.addfirstmember.store')->middleware("user");

@@ -513,6 +513,7 @@
     </script>
     @endif
 
+    @include('user-view.chatbot.chat')
 </body>
 
 </html>
