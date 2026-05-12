@@ -238,19 +238,19 @@
 
                             <!-- Message Board -->
                             <li class="has-submenu">
-                                <a class="nav-content-bttn open-font d-flex justify-content-between align-items-center {{ request()->routeIs('user.messageboard', 'user.messageto',"user.send.message") ? 'active' : '' }}"
+                                <a class="nav-content-bttn open-font d-flex justify-content-between align-items-center {{ request()->routeIs('user.messageboard', 'user.messageto') ? 'active' : '' }}"
                                     data-bs-toggle="collapse" href="#messageBoardSubmenu" role="button"
-                                    aria-expanded="{{ request()->routeIs('user.messageboard', 'user.messageto',"user.send.message") ? 'true' : 'false' }}"
+                                    aria-expanded="{{ request()->routeIs('user.messageboard', 'user.messageto') ? 'true' : 'false' }}"
                                     aria-controls="messageBoardSubmenu">
                                     <div>
-                                        <i class="feather-users btn-round-md bg-primary-gradiant me-3"></i>
+                                        <i class="feather-mail btn-round-md bg-primary-gradiant me-3"></i>
                                         <span>{{ __('messages.Message Board') }}</span>
                                     </div>
                                     <i class="feather-chevron-down"></i>
                                 </a>
-                                <div class="collapse ps-5 {{ request()->routeIs('user.messageboard', 'user.messageto',"user.send.message") ? 'show' : '' }}" id="messageBoardSubmenu">
+                                <div class="collapse ps-5 {{ request()->routeIs('user.messageboard', 'user.messageto') ? 'show' : '' }}" id="messageBoardSubmenu">
                                     <ul class="nav flex-column">
-                                        <li class="nav-item"><a href="{{ route('user.messageboard') }}" class="nav-link {{ request()->routeIs('user.messageboard',"user.send.message") ? 'active' : '' }}" style="font-size: 12px">{{ __('messages.Messages to All Members') }}</a></li>
+                                        <li class="nav-item"><a href="{{ route('user.messageboard') }}" class="nav-link {{ request()->routeIs('user.messageboard') ? 'active' : '' }}" style="font-size: 12px">{{ __('messages.Messages to All Members') }}</a></li>
                                         <li class="nav-item"><a href="{{ route('user.messageto') }}" class="nav-link {{ request()->routeIs('user.messageto') ? 'active' : '' }}" style="font-size: 12px">{{ __('messages.Messages from Members') }}</a></li>
                                     </ul>
                                 </div>

@@ -22,7 +22,15 @@ class FamilyTreeController extends Controller
 {
     public function index()
     {
-        $FamilyTreeInfo = Member::with("family")->where("parent_id", 0)->get();
+        $userId = Auth::guard("web")->user()->id;
+        // Get only families owned by the current user
+        // Exclude deleted families (Status = 2)
+        $userFamilies = FamilyTree::where('ownerId', $userId)
+            ->where('Status', '!=', 2)
+            ->pluck('id')
+            ->toArray();
+        // Get members from only those families
+        $FamilyTreeInfo = Member::with("family")->where("parent_id", 0)->whereIn('family_id', $userFamilies)->get();
         // dd($FamilyTreeInfo);
         return view("user-view.familytree.index", compact("FamilyTreeInfo"));
     }
@@ -53,9 +61,15 @@ class FamilyTreeController extends Controller
         try {
             // Find the family tree by ID
             $familyTree = FamilyTree::findOrFail($request->id);
+            
+            // Check if the current user owns this family
+            if ($familyTree->ownerId != Auth::guard("web")->user()->id) {
+                return response()->json(['message' => __('messages.Unauthorized')], 403);
+            }
 
             // Update the status of the family tree to 2 (soft delete)
-            $familyTree->status = 2;
+            // NOTE: DB column name is `Status` (capital S)
+            $familyTree->Status = 2;
             $familyTree->save();
 
             // Return a JSON response
@@ -70,6 +84,12 @@ class FamilyTreeController extends Controller
     {
         $editfamilyid = $request->editfamilyid;
         $editid = $request->editid;
+        
+        // Check if the current user owns this family
+        $familyTree = FamilyTree::find($editid);
+        if (!$familyTree || $familyTree->ownerId != Auth::guard("web")->user()->id) {
+            return response()->json(['message' => __('messages.Unauthorized')], 403);
+        }
 
         try {
             FamilyTree::where('id', $editid)
@@ -84,6 +104,13 @@ class FamilyTreeController extends Controller
 public function addmember($id)
 {
     $Id = Crypt::decryptString($id);
+    
+    // Check if the current user owns this family
+    $familyOwner = FamilyTree::where('id', $Id)->where('ownerId', Auth::guard("web")->user()->id)->first();
+    if (!$familyOwner) {
+        return redirect()->route('user.familytree')->withErrors(__('messages.Unauthorized'));
+    }
+    
     $hasMembers = Member::where('family_id', $Id)->exists();
 
     $auth = Auth::user();
@@ -112,6 +139,12 @@ public function addmember($id)
 }
     public function memberstore(MemberStoreRequest $request)
     {
+        // Check if the current user owns this family
+        $familyOwner = FamilyTree::where('id', $request->family_id)->where('ownerId', Auth::guard("web")->user()->id)->first();
+        if (!$familyOwner) {
+            return response()->json(['error' => __('messages.Unauthorized')], 403);
+        }
+        
         // Extract basic data
         $firstname = $request->firstname;
         $lastname = $request->lastname;
@@ -145,8 +178,33 @@ public function addmember($id)
         }
         $multiplePhotosString = implode('**', $multiplePhotos);
 
-        // Determine parent ID
-        $parent_id = ($request->self_id == '0' || $request->type == '4') ? 0 : $request->self_id;
+        // Determine parent ID based on the chosen relation type so the tree renders genealogically
+        $selfId = (int) $request->self_id;
+        $type = (int) $request->type;
+        $parent_id = $selfId; // default: new member is a child of the clicked card
+
+        if ($selfId === 0 || $type === 4) {
+            // First/root member, or adding a Parent above someone (handled below)
+            $parent_id = 0;
+        } elseif ($type === 6 && $selfId > 0) {
+            // Sibling shares the same parent as the clicked member
+            $selfMember = Member::find($selfId);
+            $parent_id = $selfMember ? (int) $selfMember->parent_id : $selfId;
+        } elseif ($type === 7 && $selfId > 0) {
+            // Uncle/Aunt: sibling of the clicked member's parent → attach to grandparent
+            $selfMember = Member::find($selfId);
+            if ($selfMember && $selfMember->parent_id) {
+                $parentOfSelf = Member::find($selfMember->parent_id);
+                $parent_id = $parentOfSelf ? (int) $parentOfSelf->parent_id : 0;
+            } else {
+                $parent_id = 0;
+            }
+        } elseif ($type === 8 && $selfId > 0) {
+            // Cousin: child of one of self's parent's siblings; if none recorded yet, place under
+            // self's parent so the cousin is at least visible at the correct generation
+            $selfMember = Member::find($selfId);
+            $parent_id = $selfMember ? (int) $selfMember->parent_id : $selfId;
+        }
 
         try {
             // Save Member
@@ -155,7 +213,8 @@ public function addmember($id)
             $member->parent_id = $parent_id;
             $member->firstname = $firstname;
             $member->lastname = $lastname;
-            $member->type = $request->type;
+            $member->type = $type;
+            $member->generation = $request->generation;
             $member->gender = $gender;
             $member->death = $request->has('death') ? 1 : 0;
             $member->village = $request->village;
@@ -182,9 +241,9 @@ public function addmember($id)
             $member->save();
             $lastInsertedId = $member->id;
 
-            // Update parent for type 4
-            if ($request->self_id != '0' && $request->type == '4') {
-                $existing = Member::find($request->self_id);
+            // Update parent for type 4 (adding a Parent above an existing member)
+            if ($selfId !== 0 && $type === 4) {
+                $existing = Member::find($selfId);
                 if ($existing) {
                     $existing->parent_id = $lastInsertedId;
                     $existing->save();
@@ -213,6 +272,11 @@ public function addmember($id)
     }
     public function firstmemberstore(Request $request)
     {
+        // Validate Family Id (CNIC format) early to prevent bad data
+        $request->validate([
+            'family_id' => ['required', 'regex:/^\d{5}-\d{7}-\d{1}$/'],
+        ]);
+
         // Check if family tree already exists
         $familyTreeExists = FamilyTree::where('familyid', $request->family_id)->first();
 
@@ -333,13 +397,20 @@ public function updateMember(Request $request, $id)
     // Find the member by ID
     $member = Member::findOrFail($id);
 
-    // Update member with all input values (only fields that exist in the $request)
-    $member->update($request->only([
+    // Check if the current user owns this family
+    $familyOwner = FamilyTree::where('id', $member->family_id)->where('ownerId', Auth::guard("web")->user()->id)->first();
+    if (!$familyOwner) {
+        return response()->json(['error' => __('messages.Unauthorized')], 403);
+    }
+
+    $data = $request->only([
         'firstname',
         'lastname',
         'type',
+        'generation',
         'gender',
         'death',
+        'village',
         'birthdate',
         'marriagedate',
         'deathdate',
@@ -358,11 +429,24 @@ public function updateMember(Request $request, $id)
         'interests',
         'bio',
         'avatar',
-    ]));
+        'home_town',
+        'school',
+        'background_details',
+        'business_info',
+    ]);
 
-    // Encrypt and redirect
-    $encryptedId = Crypt::encryptString($member->family_id);
-    return redirect()->route('user.addmember', ['id' => $encryptedId]);
+    // Form field is named "background_details" but the column is "background"
+    if (array_key_exists('background_details', $data)) {
+        $data['background'] = $data['background_details'];
+        unset($data['background_details']);
+    }
+
+    // Checkbox: present means alive, absent means deceased
+    $data['death'] = $request->has('death') ? 1 : 0;
+
+    $member->update($data);
+
+    return redirect()->route('user.addmember', ['id' => Crypt::encryptString($member->family_id)]);
 }
 
 
@@ -375,6 +459,16 @@ public function updateMember(Request $request, $id)
                 'message' => __('messages.Member not found')
             ], 404);
         }
+        
+        // Check if the current user owns this family
+        $familyOwner = FamilyTree::where('id', $member->family_id)->where('ownerId', Auth::guard("web")->user()->id)->first();
+        if (!$familyOwner) {
+            return response()->json([
+                'status' => 'error',
+                'message' => __('messages.Unauthorized')
+            ], 403);
+        }
+        
         try {
             $member->delete();
             return response()->json([
@@ -391,113 +485,41 @@ public function updateMember(Request $request, $id)
 
     public function getFamilyTree($id)
     {
-        // Fetch members by family_id and order by type
-        $members = Member::where('family_id', $id)->get();
-
-        if ($members->isEmpty()) {
-            return response()->json(['error' => __('messages.No members found for the given family_id')], 404);
+        // Check if the current user owns this family
+        $familyOwner = FamilyTree::where('id', $id)->where('ownerId', Auth::guard("web")->user()->id)->first();
+        if (!$familyOwner) {
+            return response()->json(['error' => __('messages.Unauthorized')], 403);
         }
 
-        // Build the hierarchical structure
-        $tree = $this->buildHierarchy($members);
-        
-        // Return the hierarchy as a JSON response
-        return response()->json($tree);
+        // Fetch all members for this family. We deliberately return a flat list:
+        // the front-end builds the hierarchy from parent_id so NO member is ever dropped
+        // because of an unexpected `type` value.
+        $members = Member::where('family_id', $id)
+            ->orderBy('id')
+            ->get()
+            ->map(function ($member) {
+                return [
+                    'id' => (int) $member->id,
+                    'parent_id' => (int) $member->parent_id,
+                    'family_id' => (int) $member->family_id,
+                    'firstname' => $member->firstname,
+                    'lastname' => $member->lastname,
+                    'type' => (int) $member->type,
+                    'generation' => $member->generation,
+                    'gender' => $member->gender,
+                    'death' => $member->death,
+                    'birthdate' => $member->birthdate,
+                    'marriagedate' => $member->marriagedate,
+                    'deathdate' => $member->deathdate,
+                    'photo' => $member->photo,
+                    'avatar' => $member->avatar,
+                ];
+            })
+            ->values();
+
+        return response()->json($members);
     }
 
-private function buildHierarchy($members)
-{
-    $hierarchy = [];
-    $map = [];
-    $attachedIds = [];
-
-    // Initialize map and relationship arrays
-    foreach ($members as $member) {
-        if (!isset($member->id) || !isset($member->type)) continue;
-
-        $member->children = collect();
-        $member->partners = collect();
-        $member->exPartners = collect();
-        $member->spouses = collect();
-        $member->siblings = collect();
-        $member->uncles = collect();
-        $member->cousins = collect();
-
-        $map[$member->id] = $member;
-    }
-
-    // First pass: attach relationships by type
-    foreach ($members as $member) {
-        if ($member->parent_id && isset($map[$member->parent_id])) {
-            $parent = $map[$member->parent_id];
-
-            // Skip if already attached
-            if (isset($attachedIds[$member->id])) continue;
-
-            switch ($member->type) {
-                case 1: // Child
-                    $parent->children->push($member);
-                    $attachedIds[$member->id] = 'children';
-                    break;
-                case 2: // Partner
-                    $parent->partners->push($member);
-                    $attachedIds[$member->id] = 'partners';
-                    break;
-                case 3: // Ex-partner
-                    $parent->exPartners->push($member);
-                    $attachedIds[$member->id] = 'exPartners';
-                    break;
-                case 5: // Spouse
-                    $parent->spouses->push($member);
-                    $attachedIds[$member->id] = 'spouses';
-                    break;
-                case 6: // Sibling
-                    $parent->siblings->push($member);
-                    $attachedIds[$member->id] = 'siblings';
-                    break;
-                case 7: // Uncle (parent's sibling)
-                    if ($parent->parent_id && isset($map[$parent->parent_id])) {
-                        $grandparent = $map[$parent->parent_id];
-                        $grandparent->children->push($member); // sibling of parent
-                        $parent->uncles->push($member);
-                        $attachedIds[$member->id] = 'uncles';
-                    }
-                    break;
-                case 8: // Cousin (child of parent's sibling)
-                    if ($parent->parent_id) {
-                        foreach ($map as $potentialUncle) {
-                            if (
-                                $potentialUncle->parent_id == $parent->parent_id &&
-                                $potentialUncle->id != $parent->id
-                            ) {
-                                $potentialUncle->children->push($member); // cousin under uncle
-                                $parent->cousins->push($member);
-                                $attachedIds[$member->id] = 'cousins';
-                                break;
-                            }
-                        }
-                    }
-                    break;
-            }
-        } else {
-            // No parent: root
-            if ($member->type == 4 && !isset($attachedIds[$member->id])) {
-                $hierarchy[] = $member;
-                $attachedIds[$member->id] = 'root';
-            }
-        }
-    }
-
-    // Fallback for disconnected members
-    foreach ($members as $member) {
-        if (!isset($attachedIds[$member->id])) {
-            $hierarchy[] = $member;
-            $attachedIds[$member->id] = 'fallback';
-        }
-    }
-
-    return $hierarchy;
-}   
     public function listing()
     {
 

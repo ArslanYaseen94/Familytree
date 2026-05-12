@@ -28,6 +28,6 @@ class MembersExport implements FromCollection, WithHeadings, WithMapping
 
     public function map($member): array
     {
-        return [$member->id, $member->family_id, $member->parent_id, $member->firstname, $member->lastname, $member->type, $member->gender, $member->death, $member->birthdate, $member->marriage_date, $member->deathdate, $member->user, $member->photo, $member->avatar, $member->facebook, $member->twitter, $member->instagram, $member->email, $member->tel, $member->mobile, $member->site, $member->birthplace, $member->deathplace, $member->profession, $member->company, $member->interests, $member->bio, $member->images, $member->created_at];
+        return [$member->id, $member->family_id, $member->parent_id, $member->firstname, $member->lastname, $member->type, $member->gender, $member->death, $member->birthdate, $member->marriagedate, $member->deathdate, $member->user, $member->photo, $member->avatar, $member->facebook, $member->twitter, $member->instagram, $member->email, $member->tel, $member->mobile, $member->site, $member->birthplace, $member->deathplace, $member->profession, $member->company, $member->interests, $member->bio, $member->images, $member->created_at];
     }
 }

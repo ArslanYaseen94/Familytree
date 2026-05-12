@@ -14,6 +14,7 @@
         href="{{ asset('assets/front-end/images/nextcome_favicone.png') }}">
     <!-- Custom Stylesheet -->
     <link rel="stylesheet" href="{{ asset('assets/front-end/css/style.css') }}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css" rel="stylesheet" />
     <meta name="csrf-token" content="{{ csrf_token() }}" />
 
     <style>
@@ -88,8 +89,6 @@ $languages = DB::table('tbl_language')->get();
                         <h2 class="fw-bold display-6 mb-4">{{ __('messages.Login into your account') }}</h2>
 
                         <form id="loginForm">
-                            <div id="Login-error" class="alert alert-danger light alert-dismissible fade show d-none"></div>
-                            <div id="Login-success" class="alert alert-success light alert-dismissible fade show d-none"></div>
 
                             <div class="form-group icon-input mb-3 position-relative">
                                 <i class="font-sm ti-email text-grey-500 position-absolute top-50 translate-middle-y ps-3"></i>
@@ -127,6 +126,7 @@ $languages = DB::table('tbl_language')->get();
 
 
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
     <script src="{{ asset('assets/front-end/js/plugin.js') }}"></script>
     <script src="{{ asset('assets/front-end/js/scripts.js') }}"></script>
 
@@ -134,8 +134,6 @@ $languages = DB::table('tbl_language')->get();
         $(document).ready(function() {
             $('#loginForm').on('submit', function(e) {
                 e.preventDefault();
-                $('#Login-error').hide();
-                $('#Login-success').hide();
                 $('#LoginBtn').prop('disabled', true).html(
                     '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> {{ __("messages.Loading...") }}'
                 );
@@ -148,29 +146,25 @@ $languages = DB::table('tbl_language')->get();
                         'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
                     },
                     success: function(response) {
-                        $('#LoginBtn').prop('disabled', false).html('Login');
-                        $('#Login-success').text(response.message).show();
+                        $('#LoginBtn').prop('disabled', false).html('{{ __("messages.Login") }}');
+                        toastr.success(response.message, '{{ __("messages.Success") }}');
 
                         setTimeout(function() {
-                            $('#Login-success').fadeOut();
                             window.location.reload();
                         }, 1000);
                     },
                     error: function(xhr) {
-                        $('#LoginBtn').prop('disabled', false).html('Login');
+                        $('#LoginBtn').prop('disabled', false).html('{{ __("messages.Login") }}');
 
                         if (xhr.responseJSON && xhr.responseJSON.errors) {
                             let errors = xhr.responseJSON.errors;
-                            let errorHtml = '<ul>';
                             $.each(errors, function(key, value) {
-                                errorHtml += '<li>' + value + '</li>';
+                                toastr.error(value, '{{ __("messages.Error") }}');
                             });
-                            errorHtml += '</ul>';
-                            $('#Login-error').html(errorHtml).show();
                         } else if (xhr.responseJSON && xhr.responseJSON.message) {
-                            $('#Login-error').text(xhr.responseJSON.message).show();
+                            toastr.error(xhr.responseJSON.message, '{{ __("messages.Error") }}');
                         } else {
-                            $('#Login-error').text('An error occurred. Please try again.').show();
+                            toastr.error('An error occurred. Please try again.', '{{ __("messages.Error") }}');
                         }
                     }
                 });

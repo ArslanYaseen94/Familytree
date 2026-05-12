@@ -14,9 +14,11 @@ class Member extends Authenticatable
     
     protected $fillable = [
         'family_id',
+        'parent_id',
         'firstname',
         'lastname',
         'type',
+        'generation',
         'gender',
         'death',
         'village',
@@ -39,7 +41,11 @@ class Member extends Authenticatable
         'company',
         'interests',
         'bio',
-        'images'
+        'images',
+        'home_town',
+        'school',
+        'background',
+        'business_info',
     ];
     
     // Define relationships based on 'type'

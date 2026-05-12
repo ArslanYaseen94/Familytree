@@ -6,10 +6,12 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Response;
 use App\Models\Member;
+use App\Models\FamilyTree;
 use App\Exports\MembersExport;
 use App\Exports\MembersImport;
 use App\Imports\MembersImport as ImportsMembersImport;
 use Maatwebsite\Excel\Facades\Excel;
+use Illuminate\Support\Facades\Auth;
 
 class ImportController extends Controller
 {
@@ -20,13 +22,43 @@ class ImportController extends Controller
 
     public function export()
     {
+        $userId = Auth::guard('web')->id();
+        $families = FamilyTree::where('ownerId', $userId)
+            ->where('Status', '!=', 2)
+            ->orderBy('id', 'desc')
+            ->get(['id', 'familyid']);
 
-        return view("user-view.import.export");
+        return view("user-view.import.export", compact('families'));
     }
     public function exportMembers(Request $request)
     {
+        $userId = Auth::guard('web')->id();
+        $ownedFamilyIds = FamilyTree::where('ownerId', $userId)
+            ->where('Status', '!=', 2)
+            ->pluck('id')
+            ->toArray();
+
+        // Scope: one family or all families
+        $request->validate([
+            'export_scope' => 'required|in:one,all',
+            'family_tree_id' => 'nullable|integer',
+        ]);
+
+        $query = Member::query()->whereIn('family_id', $ownedFamilyIds);
+
+        if ($request->export_scope === 'one') {
+            $request->validate([
+                'family_tree_id' => 'required|integer',
+            ]);
+
+            $familyId = (int) $request->family_tree_id;
+            if (!in_array($familyId, $ownedFamilyIds, true)) {
+                return response()->json(['message' => __('messages.Unauthorized')], 403);
+            }
+            $query->where('family_id', $familyId);
+        }
+
         $filterType = $request->input('filter_type');
-        $query = Member::query();
 
         if ($filterType === 'id') {
             $request->validate([
@@ -40,6 +72,8 @@ class ImportController extends Controller
                 'to_date' => 'required|date',
             ]);
             $query->whereBetween('created_at', [$request->from_date, $request->to_date]);
+        } elseif ($filterType === 'all') {
+            // no extra filters
         }
 
         $members = $query->get();
