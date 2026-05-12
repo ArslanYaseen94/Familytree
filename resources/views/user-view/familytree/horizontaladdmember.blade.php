@@ -342,7 +342,7 @@ $value = \App\Models\FamilyTree::where(['id' => $id])->get();
                                     </div>
                                      <div class="col-md-4 mt-2">
                                         <label class="form-label mont-font fw-600 font-xsss"> {{ __('messages.Relation Type:') }}</label>
-                                        <select class="form-control" name="type">
+                                        <select class="form-control" name="type" id="relation_type">
                                             @foreach ($types as $type)
                                             <option value="{{ $type->id }}">{{ $type->name }}</option>
                                             @endforeach
@@ -350,7 +350,8 @@ $value = \App\Models\FamilyTree::where(['id' => $id])->get();
                                     </div>
                                       <div class="col-md-4 mt-2">
                                         <label class="form-label mont-font fw-600 font-xsss"> {{ __('messages.Generation:') }}</label>
-                                        <select class="form-control" name="type">
+                                        <select class="form-control" name="generation" id="generation_select">
+                                            <option value="">--</option>
                                             @foreach ($generations as $generation)
                                             <option value="{{ $generation->id }}">{{ $generation->name }}</option>
                                             @endforeach
@@ -572,9 +573,9 @@ $value = \App\Models\FamilyTree::where(['id' => $id])->get();
                     .attr("stroke-width", 2);
                 const userHasImage = "{{ auth()->user()->has_image }}";
                  const birthLabel = "{{ __('messages.Birth') }}";
-                // Node cards
+                // Node cards (skip virtual root if multiple top-level members exist)
                 const node = svg.selectAll('g.node')
-                    .data(root.descendants())
+                    .data(root.descendants().filter(d => !(d.data && d.data.__virtual)))
                     .enter().append('g')
                     .attr('class', 'node')
                     .attr('transform', d => `translate(${d.x},${d.y})`);
@@ -606,13 +607,9 @@ $value = \App\Models\FamilyTree::where(['id' => $id])->get();
             ${d.data.birthdate ? `<p class="mb-1"><strong>${birthLabel}</strong> ${d.data.birthdate}</p>` : ''}
 
             <div class="d-flex mt-2">
-                ${
-                    d.data.type == '1' || d.data.type == '4' ?
-                        `<a href="javascript:void(0)" data-toggle="modal" data-target="#addnewtree" data-id="${d.data.id}" data-parent-id="${d.data.parent_id}" class="me-2">
-                            <i class="feather-plus" title="Add"></i>
-                         </a>`
-                    : ''
-                }
+                <a href="javascript:void(0)" data-toggle="modal" data-target="#addnewtree" data-id="${d.data.id}" data-parent-id="${d.data.parent_id}" class="me-2">
+                    <i class="feather-plus" title="Add"></i>
+                </a>
                 <a href="javascript:void(0)" class="me-2"><i class="feather-edit" title="Edit" data-id="${d.data.id}"></i></a>
                 <a href="javascript:void(0)"><i class="feather-trash-2" title="Delete" data-id="${d.data.id}"></i></a>
             </div>
@@ -636,61 +633,71 @@ $value = \App\Models\FamilyTree::where(['id' => $id])->get();
                 document.getElementById("family-tree").innerHTML = "<p>No Data Found</p>";
             });
 
+        // The API now returns a flat list of every member. Nothing to flatten — just pass it through.
         function flattenData(data) {
-            const result = [];
-
-            function addAll(node) {
-                if (!node.children) node.children = [];
-                if (!node.partners) node.partners = [];
-                if (!node.exPartners) node.exPartners = [];
-                if (!node.spouses) node.spouses = [];
-                if (!node.siblings) node.siblings = [];
-                result.push(node);
-                [...node.children, ...node.partners, ...node.exPartners, ...node.spouses, ...node.siblings].forEach(addAll);
-            }
-            data.forEach(addAll);
-            return result;
+            return Array.isArray(data) ? data.slice() : [];
         }
 
+        // Build the tree purely from parent_id so EVERY saved member shows up regardless of its
+        // relation `type`. Spouses / partners are still attached to dedicated arrays so
+        // positionNodeAndDescendants can place them beside the parent.
         function buildTree(data) {
             const map = {};
-            let rootNode;
 
-            // Pehle map bana lo
             data.forEach(d => {
                 map[d.id] = {
                     ...d,
-                    children: []
+                    children: [],
+                    partners: [],
+                    exPartners: [],
+                    spouses: [],
+                    siblings: []
                 };
             });
 
-            // Root node identify karo
+            const roots = [];
+
             data.forEach(d => {
-                if (d.parent_id === 0) {
-                    rootNode = map[d.id];
+                const node = map[d.id];
+                const parent = d.parent_id && map[d.parent_id] ? map[d.parent_id] : null;
+
+                if (!parent) {
+                    roots.push(node);
+                    return;
+                }
+
+                // Every member must be a descendant of its parent so d3.hierarchy can walk to it
+                parent.children.push(node);
+
+                // Also categorise so positionNodeAndDescendants can offset them beside the parent
+                const t = parseInt(d.type, 10);
+                if (t === 2) {
+                    parent.partners.push(node);
+                } else if (t === 3) {
+                    parent.exPartners.push(node);
+                } else if (t === 5) {
+                    parent.spouses.push(node);
+                } else if (t === 6) {
+                    parent.siblings.push(node);
                 }
             });
 
-            // Root ke direct children set karo
-            data.forEach(d => {
-                if (d.parent_id === rootNode.id) {
-                    rootNode.children.push(map[d.id]);
-                }
-            });
+            if (roots.length === 0) return null;
+            if (roots.length === 1) return roots[0];
 
-            // Har child ke andar uske direct children set karo
-            function linkChildren(parent) {
-                data.forEach(d => {
-                    if (d.parent_id === parent.id && d.parent_id !== rootNode.id) {
-                        parent.children.push(map[d.id]);
-                    }
-                });
-                parent.children.forEach(linkChildren);
-            }
-
-            rootNode.children.forEach(linkChildren);
-
-            return rootNode;
+            return {
+                id: '__virtual_root__',
+                __virtual: true,
+                firstname: '',
+                lastname: '',
+                type: 0,
+                parent_id: -1,
+                children: roots,
+                partners: [],
+                exPartners: [],
+                spouses: [],
+                siblings: []
+            };
         }
 
         function adjustNodesAndLinks(root) {
@@ -908,40 +915,41 @@ $value = \App\Models\FamilyTree::where(['id' => $id])->get();
     //Edit Member
     $('body').on('click', '.feather-edit', function() {
         let memberId = $(this).data('id');
-        // Fetch modal content
         $.ajax({
             url: `/user/modal/edit/${memberId}`,
             method: 'GET',
             success: function(response) {
-                // Insert modal content into the page
+                $('#editMemberModal').remove();
                 $('body').append(response);
-                $('#editMemberModal').modal('show');
-                // Update the form action URL
                 $('#editMemberForm').attr('action', `/user/members/${memberId}`);
+                $('#editMemberModal').modal('show');
             },
             error: function() {
                 alert('An error occurred while fetching the modal.');
             }
         });
     });
-    $('#editMemberForm').on('submit', function(e) {
+    $('body').on('submit', '#editMemberForm', function(e) {
         e.preventDefault();
+        var $form = $(this);
 
         $.ajax({
-            url: $(this).attr('action'), // URL from the form action attribute
-            method: 'PUT',
-            data: $(this).serialize(), // Serialize form data
-            success: function(response) {
-                if (response.success) {
-                    // Close modal and reload table if successful
-                    $('#editMemberModal').modal('hide');
-                    window.location.reload;
+            url: $form.attr('action'),
+            method: 'POST',
+            data: $form.serialize(),
+            headers: {
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+            },
+            success: function() {
+                $('#editMemberModal').modal('hide');
+                window.location.reload();
+            },
+            error: function(xhr) {
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    $('#form-error').text(xhr.responseJSON.message).show();
                 } else {
                     $('#form-error').text('An error occurred. Please try again.').show();
                 }
-            },
-            error: function(xhr) {
-                $('#form-error').text('An error occurred. Please try again.').show();
             }
         });
     });
@@ -968,24 +976,28 @@ $value = \App\Models\FamilyTree::where(['id' => $id])->get();
         });
     });
 
-    //Add Member    
+    //Add Member
     $('#addnewtree').on('show.bs.modal', function(event) {
         var button = $(event.relatedTarget);
         var memberId = button.data('id');
         var parent_id = button.data('parent-id');
         var modal = $(this);
+
+        var relationSelect = modal.find('.modal-body select[name="type"]');
+        relationSelect.find('option').prop('disabled', false);
+
         if (parent_id == undefined) {
             modal.find('.modal-body #self_id').val(0);
+            relationSelect.find('option').prop('disabled', true);
+            relationSelect.find('option[value="4"]').prop('disabled', false).prop('selected', true);
         } else {
             modal.find('.modal-body #self_id').val(memberId);
-            if (parent_id > 0) {
-                modal.find('.modal-body select[name="type"] option[value="4"]').prop('disabled', true);
-                modal.find('.modal-body select[name="type"] option[value="1"]').prop('selected', true);
-            } else {
-                modal.find('.modal-body select[name="type"] option[value="4"]').prop('disabled', false);
+            relationSelect.find('option[value="4"]').prop('disabled', true);
+            relationSelect.prop('selectedIndex', 0);
+            if (relationSelect.find('option:selected').is(':disabled')) {
+                relationSelect.find('option:not(:disabled)').first().prop('selected', true);
             }
         }
-
     });
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>

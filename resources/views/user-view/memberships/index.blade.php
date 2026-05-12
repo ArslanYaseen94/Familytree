@@ -19,6 +19,13 @@
                 <h2 class="text-center"> {{ __('messages.Choose Your Pricing') }}</h2>
                 <p class="text-center text-muted mb-5"> {{ __('messages.Simple, flexible and predictable pricing.') }}</p>
 
+                <div class="text-center mb-4">
+                    <div class="fw-semibold">
+                        {{ __('messages.Current Plan') }}:
+                        <span class="text-primary">{{ auth()->user()->membership_plan ?? __('messages.None') }}</span>
+                    </div>
+                </div>
+
                 <div class="row justify-content-center g-4">
 
                     <!-- Free Trial -->
@@ -75,6 +82,13 @@
     </div>
 </div>
 
+@if (session('error'))
+    <script>
+        // Show Stripe/PayPal startup errors clearly after redirect-back
+        alert(@json(session('error')));
+    </script>
+@endif
+
 {{-- Payment method modal (no bootstrap JS dependency) --}}
 @php
     $paypalActive = $gateway && (string) $gateway->paypal_status === '1';
@@ -125,14 +139,15 @@
         const paypalLink = document.getElementById('paymentLinkPaypal');
         const stripeLink = document.getElementById('paymentLinkStripe');
 
-        const paypalBase = @json(rtrim(route('paypal.subscribe', 0), '0'));
-        const stripeBase = @json(rtrim(route('stripe.checkout', 0), '0'));
+        // Safer than rtrim(..., '0') which can remove more than intended.
+        const paypalTpl = @json(route('paypal.subscribe', ['id' => 'PLAN_ID']));
+        const stripeTpl = @json(route('stripe.checkout', ['id' => 'PLAN_ID']));
 
         function openModal(planId, planName) {
             if (planLabel) planLabel.textContent = planName ? (planName + ' (ID: ' + planId + ')') : ('Plan ID: ' + planId);
 
-            if (paypalLink) paypalLink.href = paypalBase + planId;
-            if (stripeLink) stripeLink.href = stripeBase + planId;
+            if (paypalLink) paypalLink.href = paypalTpl.replace('PLAN_ID', planId);
+            if (stripeLink) stripeLink.href = stripeTpl.replace('PLAN_ID', planId);
 
             modal.style.display = 'block';
             backdrop.style.display = 'block';

@@ -15,7 +15,8 @@ class FamilyTreeStoreRequest extends FormRequest
     {
         return [
 
-          'familyid' => 'required|string',
+          // Pakistan CNIC format: 12345-1234567-1
+          'familyid' => ['required', 'regex:/^\d{5}-\d{7}-\d{1}$/'],
         ];
     }
 }

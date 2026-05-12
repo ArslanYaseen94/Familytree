@@ -14,6 +14,7 @@
         href="{{ asset('assets/front-end/images/nextcome_favicone.png') }}">
     <!-- Custom Stylesheet -->
     <link rel="stylesheet" href="{{ asset('assets/front-end/css/style.css') }}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
     <meta name="csrf-token" content="{{ csrf_token() }}" />
     <link href="https://fonts.googleapis.com/css2?family=Poppins&display=swap" rel="stylesheet">
@@ -88,8 +89,6 @@ $languages = DB::table('tbl_language')->get();
                         <h2 class="fw-bold display-6 mb-4">{{ __("messages.Create Your Account") }}</h2>
 
                         <form id="RegisterForm">
-                            <div id="Register-error" class="alert alert-danger light alert-dismissible fade show d-none"></div>
-                            <div id="Register-success" class="alert alert-success light alert-dismissible fade show d-none"></div>
 
                             @foreach ([
                             ['name', 'ti-user'],
@@ -110,7 +109,15 @@ $languages = DB::table('tbl_language')->get();
                                     class="style2-input ps-5 form-control text-grey-900 font-xss ls-3"
                                     name="{{ $field[0] }}"
                                     id="{{ $field[0] }}"
-                                    placeholder="{{ __("messages." . ucfirst($field[0])) }}">
+                                    @if($field[0] === 'familyId')
+                                        placeholder="12345-1234567-1"
+                                        inputmode="numeric"
+                                        maxlength="15"
+                                        pattern="^\d{5}-\d{7}-\d{1}$"
+                                    @else
+                                        placeholder="{{ __("messages." . ucfirst($field[0])) }}"
+                                    @endif
+                                >
                             </div>
                             @endforeach
 
@@ -133,17 +140,42 @@ $languages = DB::table('tbl_language')->get();
     </div>
 
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
     <script src="{{ asset('assets/front-end/js/plugin.js') }}"></script>
     <script src="{{ asset('assets/front-end/js/scripts.js') }}"></script>
 
     <script>
         $(document).ready(function() {
+            // CNIC input formatter for familyId: 12345-1234567-1
+            (function() {
+                const el = document.getElementById('familyId');
+                if (!el) return;
+
+                function formatCNIC(value) {
+                    const digits = (value || '').replace(/\D/g, '').slice(0, 13);
+                    const p1 = digits.slice(0, 5);
+                    const p2 = digits.slice(5, 12);
+                    const p3 = digits.slice(12, 13);
+                    let out = p1;
+                    if (p2.length) out += '-' + p2;
+                    if (p3.length) out += '-' + p3;
+                    return out;
+                }
+
+                el.addEventListener('input', () => {
+                    const start = el.selectionStart;
+                    const before = el.value;
+                    el.value = formatCNIC(el.value);
+                    const delta = el.value.length - before.length;
+                    if (typeof start === 'number') el.setSelectionRange(start + delta, start + delta);
+                });
+            })();
+
             $('#RegisterForm').on('submit', function(e) {
                 e.preventDefault();
-                $('#Register-error').hide();
                 $('#RegisterBtn').prop('disabled', true);
                 $('#RegisterBtn').html(
-                    '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Loading...'
+                    '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> {{ __("messages.Loading...") }}'
                 );
                 $.ajax({
                     url: "{{ route('user.register') }}",
@@ -155,34 +187,26 @@ $languages = DB::table('tbl_language')->get();
                     success: function(response) {
 
                         $('#RegisterBtn').prop('disabled', false);
-                        $('#RegisterBtn').html('Save');
-                        $('#Register-success').text(response.message).show();
+                        $('#RegisterBtn').html('{{ __("messages.Register") }}');
+                        toastr.success(response.message, '{{ __("messages.Success") }}');
                         setTimeout(function() {
-                            $('#Register-success').fadeOut();
                             window.location.reload();
                         }, 1000);
                     },
                     error: function(xhr) {
                         $('#RegisterBtn').prop('disabled', false);
-                        $('#RegisterBtn').html('Save');
+                        $('#RegisterBtn').html('{{ __("messages.Register") }}');
 
                         if (xhr.responseJSON && xhr.responseJSON.errors) {
                             var errors = xhr.responseJSON.errors;
-                            var errorHtml = '<ul>';
                             $.each(errors, function(key, value) {
-                                errorHtml += '<li>' + value +
-                                    '</li>'; // Append each error as list item
+                                toastr.error(value, '{{ __("messages.Error") }}');
                             });
-                            errorHtml += '</ul>';
-
-                            // Display errors in a specific element with id="plan-error"
-                            $('#Register-error').html(errorHtml).show();
                         } else if (xhr.responseJSON && xhr.responseJSON.message) {
                             // Display single error message
-                            $('#Register-error').text(xhr.responseJSON.message).show();
+                            toastr.error(xhr.responseJSON.message, '{{ __("messages.Error") }}');
                         } else {
-                            $('#Register-error').text('An error occurred. Please try again.')
-                                .show();
+                            toastr.error('An error occurred. Please try again.', '{{ __("messages.Error") }}');
                         }
                     }
                 });

@@ -17,7 +17,8 @@ class RegisterRequest extends FormRequest
           'name' => 'required|string|',
           'email' => 'required|string|email',
           'password' => 'required|string',
-          'familyId' => 'required|string',
+          // Pakistan CNIC format: 12345-1234567-1
+          'familyId' => ['required', 'regex:/^\d{5}-\d{7}-\d{1}$/'],
         ];
     }
 }

@@ -24,6 +24,8 @@ use App\Http\Controllers\User\UserRegisterController;
 use App\Http\Controllers\ChatbotController;
 use Illuminate\Support\Facades\Route;
 
+// Stripe webhook endpoint (must be outside authentication)
+Route::post('/stripe/webhook', [StripeController::class, 'webhook'])->name('stripe.webhook')->withoutMiddleware(\App\Http\Middleware\VerifyCsrfToken::class);
 
 Route::namespace('User')->group(function () {
     Route::get('/', 'UserLoginController@index')->name('user.loginpage')->middleware('userredirectIfAuthenticated');
@@ -69,12 +71,14 @@ Route::namespace('User')->group(function () {
         Route::get('search', 'UserController@search')->name('user.search');
         Route::get("family-lisitng", [FamilyTreeController::class, "listing"])->name("user.familylisting");
         Route::get("messages", [MessagesController::class, "usermessages"])->name("user.messageboard");
+        Route::post("messages/send-email", [MessagesController::class, "sendEmailToMembers"])->name("user.messages.send-email");
         Route::get("messages-from", [MessagesController::class, "usermessagesto"])->name("user.messageto");
         Route::post('/user/message/store', [MessagesController::class, 'usersstore'])->name('user.message.store');
         Route::get("import", [ImportController::class, "index"])->name("user.import");
         Route::get("export", [ImportController::class, "export"])->name("user.export");
         Route::post('/export-members', [ImportController::class, 'exportMembers'])->name('export.members');
         Route::get('/messages/{id}', [MessagesController::class, 'usershow'])->name('user.messages.show');
+        Route::post('/messages/{id}/reply', [MessagesController::class, 'userReply'])->name('user.messages.reply');
         Route::get("send-message", [MessagesController::class, "sendmessage"])->name("user.send.message");
         Route::get("security", [ConfigurationController::class, "index"])->name("user.security");
         // web.php

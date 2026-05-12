@@ -62,15 +62,16 @@
                                         <label class="form-label mont-font fw-600 font-xsss"> {{ __('messages.Relation Type:') }}</label>
                                         <select class="form-control" name="type">
                                             @foreach ($types as $type)
-                                            <option value="{{ $type->id }}">{{ $type->name }}</option>
+                                            <option value="{{ $type->id }}" {{ (int) old('type', $member->type) === (int) $type->id ? 'selected' : '' }}>{{ $type->name }}</option>
                                             @endforeach
                                         </select>
                                     </div>
                                       <div class="col-md-4 mt-2">
-                                        <label class="form-label mont-font fw-600 font-xsss"> {{ __('messages.Relation Type:') }}</label>
-                                        <select class="form-control" name="type">
+                                        <label class="form-label mont-font fw-600 font-xsss"> {{ __('messages.Generation:') }}</label>
+                                        <select class="form-control" name="generation">
+                                            <option value="" {{ old('generation', $member->generation) === null || old('generation', $member->generation) === '' ? 'selected' : '' }}>--</option>
                                             @foreach ($generations as $generation)
-                                            <option value="{{ $generation->id }}">{{ $generation->name }}</option>
+                                            <option value="{{ $generation->id }}" {{ (string) old('generation', $member->generation) === (string) $generation->id ? 'selected' : '' }}>{{ $generation->name }}</option>
                                             @endforeach
                                         </select>
                                     </div>
@@ -196,24 +197,24 @@
                                     <div class="col">
                                         <label class="form-label"> {{ __('messages.Home Town:') }}</label>
                                         <input class="form-control" type="text" placeholder="{{ __('messages.Enter Home Town') }}"
-                                            name="home_town" />
+                                            name="home_town" value="{{ old('home_town', $member->home_town) }}" />
                                     </div>
                                     <div class="col">
                                         <label class="form-label"> {{ __('messages.School:') }}</label>
                                         <input class="form-control" type="text" placeholder="{{ __('messages.Enter School') }}"
-                                            name="school" />
+                                            name="school" value="{{ old('school', $member->school) }}" />
                                     </div>
                                 </div>
                                 <div class="row mt-2">
                                     <div class="col">
                                         <label class="form-label"> {{ __('messages.Background:') }}</label>
                                         <input class="form-control" type="text"
-                                            placeholder="{{ __("messages.Enter Background Details") }}" name="background_details" />
+                                            placeholder="{{ __("messages.Enter Background Details") }}" name="background_details" value="{{ old('background_details', $member->background) }}" />
                                     </div>
                                     <div class="col">
                                         <label class="form-label"> {{ __('messages.Business Info:') }}</label>
                                         <input class="form-control" type="text" placeholder="{{ __('messages.Enter Business Info') }}"
-                                            name="business_info" />
+                                            name="business_info" value="{{ old('business_info', $member->business_info) }}" />
                                     </div>
                                 </div>
                             <label class="form-label mt-2"> {{ __('messages.Profession:') }}</label>

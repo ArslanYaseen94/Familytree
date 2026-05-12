@@ -346,15 +346,16 @@ $generations = \App\Models\Generations::where(['is_active' => 1])->get();
                                     </div>
                                     <div class="col-md-4 mt-2">
                                         <label class="form-label mont-font fw-600 font-xsss"> {{ __('messages.Relation Type:') }}</label>
-                                        <select class="form-control" name="type">
+                                        <select class="form-control" name="type" id="relation_type">
                                             @foreach ($types as $type)
                                             <option value="{{ $type->id }}">{{ $type->name }}</option>
                                             @endforeach
                                         </select>
                                     </div>
                                     <div class="col-md-4 mt-2">
-                                        <label class="form-label mont-font fw-600 font-xsss"> {{ __('messages.Relation Type:') }}</label>
-                                        <select class="form-control" name="type">
+                                        <label class="form-label mont-font fw-600 font-xsss"> {{ __('messages.Generation:') }}</label>
+                                        <select class="form-control" name="generation" id="generation_select">
+                                            <option value="">--</option>
                                             @foreach ($generations as $generation)
                                             <option value="{{ $generation->id }}">{{ $generation->name }}</option>
                                             @endforeach
@@ -529,10 +530,11 @@ $generations = \App\Models\Generations::where(['is_active' => 1])->get();
             .attr("height", "100%")
             .attr("viewBox", "0 0 2800 800")
             .attr("preserveAspectRatio", "xMidYMid meet")
-            .call(d3.zoom().scaleExtent([0.5, 2]).on("zoom", zoom))
-            .append("g")
-            .attr("transform", "translate(40,40)");
+            .call(d3.zoom().scaleExtent([0.3, 2]).on("zoom", zoom))
+            .append("g");
 
+        // Pan / zoom transform is applied to the inner <g>; the static viewBox is set later
+        // by fitViewBox() once we know where every card actually lives.
         function zoom(event) {
             svg.attr("transform", event.transform);
         }
@@ -550,48 +552,24 @@ $generations = \App\Models\Generations::where(['is_active' => 1])->get();
                 const rootNode = buildTree(flatData);
                 const root = d3.hierarchy(rootNode, d => d.children);
 
-                const nodeCount = root.descendants().length;
-                const treeWidth = Math.max(2800, nodeCount * 180);
-                const treeHeight = Math.max(1200, root.height * 250 + 200);
-                const treeLayout = d3.tree()
-                    .size([treeWidth - 200, treeHeight - 200])
-                    .separation((a, b) => a.parent === b.parent ? 1.5 : 2);
-                treeLayout(root);
+                // Run our own hierarchical layout. d3.tree() can't handle variable-width nodes
+                // (a person + their partners + ex-partners sit on a single row), so we compute
+                // each subtree's required width and centre parents above their children. This
+                // guarantees cards never overlap and lines never cross another card.
+                const positions = computeCustomLayout(root);
 
-                // Create links using the adjusted line-drawing logic
-
-                const link = svg.selectAll('.link')
-                    .data(root.links())
-                    .enter().append('path')
-                    .attr('class', 'link')
-                    .attr('d', d => {
-                        const startX = d.source.x + 50;
-                        const startY = d.source.y + 140; // Bottom of the card (foreignObject y:-10 + height:160 = 150, minus a bit)
-                        const endX = d.target.x + 50;
-                        const endY = d.target.y - 15; // Top of the child card
-
-                        const midY = (startY + endY) / 2;
-
-                        // Check if the target node is not a partner (type 2) or ex-partner (type 3)
-                        if ((d.target.data.type !== 2 && d.target.data.type !== 3) && d.source
-                            .children && d.source.children.length > 0) {
-                            return `M${startX},${startY} V${midY} H${endX} V${endY}`;
-                        } else {
-                            return ""; // Return an empty string to avoid drawing the line
-                        }
-                    })
-                    .attr("fill", "none")
-                    .attr("stroke", "#ccc")
-                    .attr("stroke-width", 2);
                 const userHasImage = "{{ auth()->user()->has_image }}";
                 const birthLabel = "{{ __('messages.Birth') }}";
 
-                // Create nodes
+                // Create node g elements (skip the virtual root used to host multiple top-level members)
                 const node = svg.selectAll('g.node')
-                    .data(root.descendants())
+                    .data(root.descendants().filter(d => !(d.data && d.data.__virtual)))
                     .enter().append('g')
                     .attr('class', 'node')
-                    .attr('transform', d => `translate(${d.x},${d.y})`);
+                    .attr('transform', d => {
+                        const pos = positions.get(d.data.id);
+                        return pos ? `translate(${pos.x},${pos.y})` : 'translate(0,0)';
+                    });
 
                 node.append('foreignObject')
                     .attr('width', 130)
@@ -603,11 +581,11 @@ $generations = \App\Models\Generations::where(['is_active' => 1])->get();
                     ${
                     userHasImage === '1' ? `
                             <figure class="avatar">
-                                ${d.data.photo ? 
-                                    `<img src="/assets/front-end/Memberimgs/${d.data.photo}" alt="image">` 
-                                    : d.data.avatar ? 
-                                    `<img src="/assets/front-end/avatar/${d.data.avatar}.jpg" alt="image">` 
-                                    : 
+                                ${d.data.photo ?
+                                    `<img src="/assets/front-end/Memberimgs/${d.data.photo}" alt="image">`
+                                    : d.data.avatar ?
+                                    `<img src="/assets/front-end/avatar/${d.data.avatar}.jpg" alt="image">`
+                                    :
                                     `<img src="/assets/front-end/default-avatar.jpg" alt="image">`
                                 }
                             </figure>
@@ -618,74 +596,36 @@ $generations = \App\Models\Generations::where(['is_active' => 1])->get();
                         ${d.data.birthdate ? `<p><strong>${birthLabel}:</strong> ${d.data.birthdate}</p>` : ''}
                     </div>
                     <div class="icons-container">
-                        ${d.data.type == '1' || d.data.type == '4' ? `<a href="javascript:void(0)" data-toggle="modal" data-target="#addnewtree" data-id="${d.data.id}" data-parent-id="${d.data.parent_id}"><i class="feather-plus" title="Add"></i></a>` : ''}
+                        <a href="javascript:void(0)" data-toggle="modal" data-target="#addnewtree" data-id="${d.data.id}" data-parent-id="${d.data.parent_id}"><i class="feather-plus" title="Add"></i></a>
                         <a href="javascript:void(0)"><i class="feather-edit" title="Edit" data-id="${d.data.id}"></i></a>
                         <a href="javascript:void(0)"><i class="feather-trash-2" title="Delete" data-id="${d.data.id}"></i></a>
                     </div>
                     </div>
                 `);
 
-                // Adjust nodes and links for partners and ex-partners
-                adjustNodesAndLinks(root);
+                // Draw parent-child connectors and partner / ex-partner relationship lines
+                drawAllConnectors(root, positions);
 
-                // Adjust SVG dimensions dynamically based on the tree layout
-                let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-                root.descendants().forEach(d => {
-                    const pos = positionMap ? positionMap.get(d.data.id) : { x: d.x, y: d.y };
-                    const px = pos ? pos.x : d.x;
-                    const py = pos ? pos.y : d.y;
-                    if (px < minX) minX = px;
-                    if (px > maxX) maxX = px;
-                    if (py < minY) minY = py;
-                    if (py > maxY) maxY = py;
-                });
-                const vbWidth = Math.max(maxX + 300, 2800);
-                const vbHeight = Math.max(maxY + 300, 1200);
-                d3.select('#family-tree svg').attr('viewBox', `0 0 ${vbWidth} ${vbHeight}`);
+                // Resize the SVG viewBox to fit every card, with padding on all sides
+                fitViewBox(positions);
             })
             .catch(error => {
                 console.error('Error fetching or processing data:', error);
                 document.getElementById("family-tree").innerHTML = "<p>No Data Found</p>";
             });
 
+        // The API now returns a flat list of every member. Nothing to flatten — just pass it through.
         function flattenData(data) {
-            const result = [];
-
-            function addChildren(node) {
-                if (!node.children) node.children = [];
-                if (!node.partners) node.partners = [];
-                if (!node.exPartners) node.exPartners = [];
-
-                result.push(node);
-                if (node.children) {
-                    node.children.forEach(addChildren);
-                }
-                if (node.partners) {
-                    node.partners.forEach(partner => {
-                        result.push(partner);
-                        if (partner.children) {
-                            partner.children.forEach(addChildren);
-                        }
-                    });
-                }
-                if (node.exPartners) {
-                    node.exPartners.forEach(exPartner => {
-                        result.push(exPartner);
-                        if (exPartner.children) {
-                            exPartner.children.forEach(addChildren);
-                        }
-                    });
-                }
-
-            }
-
-            data.forEach(addChildren);
-            return result;
+            return Array.isArray(data) ? data.slice() : [];
         }
 
+        // Build the tree purely from `parent_id` so EVERY saved member shows up regardless of
+        // its relation `type`. Every member is added to its parent's `children` array (so
+        // d3.hierarchy actually walks to it), and partners/ex-partners are ALSO recorded in
+        // dedicated arrays so the positioning code can offset them beside the parent instead of
+        // stacking them below as a child.
         function buildTree(data) {
             const map = {};
-            let rootNode;
 
             data.forEach(d => {
                 map[d.id] = {
@@ -696,97 +636,249 @@ $generations = \App\Models\Generations::where(['is_active' => 1])->get();
                 };
             });
 
+            const roots = [];
+
             data.forEach(d => {
-                if (d.parent_id === 0) {
-                    rootNode = map[d.id];
-                } else {
-                    const parent = map[d.parent_id];
-                    if (parent) {
-                        parent.children.push(map[d.id]);
-                    }
+                const node = map[d.id];
+                const parent = d.parent_id && map[d.parent_id] ? map[d.parent_id] : null;
+
+                if (!parent) {
+                    // Either parent_id is 0 or the referenced parent doesn't exist
+                    roots.push(node);
+                    return;
+                }
+
+                // Every member is a descendant of its parent for hierarchy traversal
+                parent.children.push(node);
+
+                // Tag partners / ex-partners so they can be offset beside the parent
+                const t = parseInt(d.type, 10);
+                if (t === 2) {
+                    parent.partners.push(node);
+                } else if (t === 3) {
+                    parent.exPartners.push(node);
                 }
             });
 
-            data.forEach(d => {
-                if (d.partners) {
-                    d.partners.forEach(partner => {
-                        const parent = map[d.id];
-                        if (parent) {
-                            parent.partners.push(map[partner.id]);
-                        }
-                    });
-                }
-                if (d.exPartners) {
-                    d.exPartners.forEach(exPartner => {
-                        const parent = map[d.id];
-                        if (parent) {
-                            parent.exPartners.push(map[exPartner.id]);
-                        }
-                    });
-                }
-            });
+            if (roots.length === 0) return null;
+            if (roots.length === 1) return roots[0];
 
-            return rootNode;
+            // If somehow multiple top-level members exist, wrap them under a virtual root that
+            // won't be displayed itself but lets d3 lay them out.
+            return {
+                id: '__virtual_root__',
+                __virtual: true,
+                firstname: '',
+                lastname: '',
+                type: 0,
+                parent_id: -1,
+                children: roots,
+                partners: [],
+                exPartners: []
+            };
         }
 
-        var positionMap;
-        function adjustNodesAndLinks(root) {
-            const ySpacing = 250;
-            const partnerSpacing = 140;
-            const exPartnerSpacing = -140;
+    // -----------------------------------------------------------------
+    //  Custom hierarchical layout
+    //
+    //  Geometry:
+    //    - Each card's visual box is 130 (w) × 160 (h).
+    //    - The d3 `g.node` is translated to (gx, gy); the foreignObject inside is offset
+    //      by (-15, -10), so the visual top-left of the card is at (gx - 15, gy - 10) and
+    //      the visual centre is (gx + 50, gy + 70).
+    //
+    //  Strategy:
+    //    - Bottom-up: compute the horizontal width each subtree needs, treating the main
+    //      person + ex-partners (left) + partners (right) as a single horizontal "row".
+    //    - Top-down: place each subtree inside its allocated width so cards never overlap
+    //      with siblings, and centre each parent above its non-partner children.
+    // -----------------------------------------------------------------
+    const CARD_W = 130;
+    const CARD_H = 160;
+    const SIBLING_GAP = 60;     // gap between adjacent sibling subtrees
+    const PARTNER_GAP = 26;     // gap between partner cards on the same row
+    const GENERATION_GAP = 240; // vertical distance between generations
 
-            const nodeMap = new Map();
-            root.descendants().forEach(node => nodeMap.set(node.data.id, node));
+    function isPartnerNode(node) {
+        const t = parseInt(node.data.type, 10);
+        return t === 2 || t === 3;
+    }
 
-            positionMap = new Map();
+    function directChildrenOf(node) {
+        return (node.children || []).filter(c => !isPartnerNode(c));
+    }
 
-            function adjustNodePosition(node, offsetX) {
-                if (!node.children) node.children = [];
-                if (!node.data.partners) node.data.partners = [];
-                if (!node.data.exPartners) node.data.exPartners = [];
+    function computeCustomLayout(root) {
+        const positions = new Map();
+        const slotW = CARD_W + PARTNER_GAP;
 
-                const id = node.data.id;
-                if (positionMap.has(id)) return;
+        function computeWidth(node) {
+            const partners = (node.data && node.data.partners) || [];
+            const exPartners = (node.data && node.data.exPartners) || [];
+            const leftExt = CARD_W / 2 + exPartners.length * slotW;
+            const rightExt = CARD_W / 2 + partners.length * slotW;
 
-                node.x += offsetX;
-                positionMap.set(id, {
-                    x: node.x,
-                    y: node.y
-                });
+            const children = directChildrenOf(node);
+            let childrenW = 0;
+            children.forEach((c, i) => {
+                childrenW += computeWidth(c) + (i > 0 ? SIBLING_GAP : 0);
+            });
 
-                if (node.data.partners.length > 0) {
-                    node.data.partners.forEach((partner, index) => {
-                        const partnerNode = nodeMap.get(partner.id);
-                        if (partnerNode) {
-                            partnerNode.x = node.x + partnerSpacing;
-                            partnerNode.y = node.y + (index * ySpacing);
-                            adjustNodePosition(partnerNode, partnerSpacing);
-                        }
-                    });
-                }
+            const L = Math.max(leftExt, childrenW / 2);
+            const R = Math.max(rightExt, childrenW / 2);
 
-                if (node.data.exPartners.length > 0) {
-                    node.data.exPartners.forEach((exPartner, index) => {
-                        const exPartnerNode = nodeMap.get(exPartner.id);
-                        if (exPartnerNode) {
-                            exPartnerNode.x = node.x + exPartnerSpacing;
-                            exPartnerNode.y = node.y + (index * ySpacing);
-                            adjustNodePosition(exPartnerNode, exPartnerSpacing);
-                        }
-                    });
-                }
+            node._lay = {
+                L: L,
+                R: R,
+                leftExt: leftExt,
+                rightExt: rightExt,
+                childrenW: childrenW,
+                totalW: L + R
+            };
+            return node._lay.totalW;
+        }
 
-                if (node.children.length > 0) {
-                    node.children.forEach(child => adjustNodePosition(child, offsetX));
-                }
+        function place(node, leftX, y) {
+            const lay = node._lay;
+            const partners = (node.data && node.data.partners) || [];
+            const exPartners = (node.data && node.data.exPartners) || [];
+
+            const mainCenterX = leftX + lay.L;
+            // The card's visual centre is at (gx + 50, gy + 70) because foreignObject is at
+            // (-15, -10) inside the g and the card is 130×160. We want the visual centre at
+            // mainCenterX, so gx = mainCenterX - 50.
+            const gx = mainCenterX - 50;
+            const gy = y;
+
+            // The virtual root is invisible: only record positions for real members
+            if (!(node.data && node.data.__virtual)) {
+                positions.set(node.data.id, { x: gx, y: gy });
             }
 
-            adjustNodePosition(root, 0);
+            // Ex-partners to the left of main
+            for (let i = 0; i < exPartners.length; i++) {
+                const exGx = gx - (i + 1) * slotW;
+                positions.set(exPartners[i].id, { x: exGx, y: gy });
+            }
 
-            svg.selectAll('.node')
-                .attr('transform', d =>
-                    `translate(${positionMap.get(d.data.id).x},${positionMap.get(d.data.id).y})`);
+            // Partners to the right of main
+            for (let i = 0; i < partners.length; i++) {
+                const pGx = gx + (i + 1) * slotW;
+                positions.set(partners[i].id, { x: pGx, y: gy });
+            }
+
+            // Children below this group, centred under the main person
+            const children = directChildrenOf(node);
+            if (children.length === 0) return;
+
+            let childLeftX = mainCenterX - lay.childrenW / 2;
+            children.forEach(child => {
+                place(child, childLeftX, y + GENERATION_GAP);
+                childLeftX += child._lay.totalW + SIBLING_GAP;
+            });
         }
+
+        computeWidth(root);
+        // If the root is a synthetic virtual node (multiple real roots), start it one
+        // generation above so the real roots line up at y = 100.
+        const startY = (root.data && root.data.__virtual) ? (100 - GENERATION_GAP) : 100;
+        place(root, 0, startY);
+
+        return positions;
+    }
+
+    function drawAllConnectors(root, positions) {
+        // Clear any previously drawn connectors (e.g. from re-runs)
+        svg.selectAll('.link, .relation-line').remove();
+
+        // Visual offsets relative to the g.node translate
+        const topY = -10;            // top edge of card
+        const bottomY = -10 + CARD_H; // bottom edge of card (150)
+        const leftX = -15;           // left edge of card
+        const rightX = -15 + CARD_W;  // right edge of card (115)
+        const midY = -10 + CARD_H / 2; // vertical centre of card (70)
+        const centreX = -15 + CARD_W / 2; // horizontal centre of card (50)
+
+        root.descendants().forEach(node => {
+            if (node.data && node.data.__virtual) {
+                // virtual root: still walk to its real-root children below
+                return;
+            }
+            const myPos = positions.get(node.data.id);
+            if (!myPos) return;
+
+            // Parent → child connectors (only for non-partner direct children)
+            const children = directChildrenOf(node);
+            children.forEach(child => {
+                if (child.data && child.data.__virtual) return;
+                const cPos = positions.get(child.data.id);
+                if (!cPos) return;
+
+                const startX = myPos.x + centreX;
+                const startY = myPos.y + bottomY;
+                const endX = cPos.x + centreX;
+                const endY = cPos.y + topY;
+                const mid = (startY + endY) / 2;
+
+                svg.append('path')
+                    .attr('class', 'link')
+                    .attr('d', `M${startX},${startY} V${mid} H${endX} V${endY}`)
+                    .attr('fill', 'none')
+                    .attr('stroke', '#999')
+                    .attr('stroke-width', 1.5);
+            });
+
+            // Partner connectors (solid horizontal line at card mid-height)
+            (node.data.partners || []).forEach(p => {
+                const pPos = positions.get(p.id);
+                if (!pPos) return;
+                svg.append('path')
+                    .attr('class', 'relation-line')
+                    .attr('d', `M${myPos.x + rightX},${myPos.y + midY} L${pPos.x + leftX},${pPos.y + midY}`)
+                    .attr('stroke', '#666')
+                    .attr('stroke-width', 2)
+                    .attr('fill', 'none');
+            });
+
+            // Ex-partner connectors (dashed horizontal line at card mid-height)
+            (node.data.exPartners || []).forEach(p => {
+                const pPos = positions.get(p.id);
+                if (!pPos) return;
+                svg.append('path')
+                    .attr('class', 'relation-line')
+                    .attr('d', `M${myPos.x + leftX},${myPos.y + midY} L${pPos.x + rightX},${pPos.y + midY}`)
+                    .attr('stroke', '#aaa')
+                    .attr('stroke-width', 2)
+                    .attr('stroke-dasharray', '6 4')
+                    .attr('fill', 'none');
+            });
+        });
+
+        // Reorder so the nodes paint on top of the lines (better visual stacking)
+        svg.selectAll('g.node').raise();
+    }
+
+    function fitViewBox(positions) {
+        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+        positions.forEach(pos => {
+            const visualLeft = pos.x - 15;
+            const visualRight = pos.x - 15 + CARD_W;
+            const visualTop = pos.y - 10;
+            const visualBottom = pos.y - 10 + CARD_H;
+            if (visualLeft < minX) minX = visualLeft;
+            if (visualRight > maxX) maxX = visualRight;
+            if (visualTop < minY) minY = visualTop;
+            if (visualBottom > maxY) maxY = visualBottom;
+        });
+        if (!isFinite(minX)) { minX = 0; maxX = 2800; minY = 0; maxY = 1200; }
+
+        const pad = 80;
+        const vbX = minX - pad;
+        const vbY = minY - pad;
+        const vbWidth = Math.max(maxX - minX + 2 * pad, 2800);
+        const vbHeight = Math.max(maxY - minY + 2 * pad, 1200);
+        d3.select('#family-tree svg').attr('viewBox', `${vbX} ${vbY} ${vbWidth} ${vbHeight}`);
+    }
     });
 
     //Edit Member
@@ -797,35 +889,38 @@ $generations = \App\Models\Generations::where(['is_active' => 1])->get();
             url: `/user/modal/edit/${memberId}`,
             method: 'GET',
             success: function(response) {
-                // Insert modal content into the page
+                // Remove any previously injected edit modal so values from the new member load freshly
+                $('#editMemberModal').remove();
                 $('body').append(response);
-                $('#editMemberModal').modal('show');
-                // Update the form action URL
                 $('#editMemberForm').attr('action', `/user/members/${memberId}`);
+                $('#editMemberModal').modal('show');
             },
             error: function() {
                 alert('An error occurred while fetching the modal.');
             }
         });
     });
-    $('#editMemberForm').on('submit', function(e) {
+    $('body').on('submit', '#editMemberForm', function(e) {
         e.preventDefault();
+        var $form = $(this);
 
         $.ajax({
-            url: $(this).attr('action'), // URL from the form action attribute
-            method: 'PUT',
-            data: $(this).serialize(), // Serialize form data
-            success: function(response) {
-                if (response.success) {
-                    // Close modal and reload table if successful
-                    $('#editMemberModal').modal('hide');
-                    window.location.reload;
+            url: $form.attr('action'),
+            method: 'POST',
+            data: $form.serialize(),
+            headers: {
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+            },
+            success: function() {
+                $('#editMemberModal').modal('hide');
+                window.location.reload();
+            },
+            error: function(xhr) {
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    $('#form-error').text(xhr.responseJSON.message).show();
                 } else {
                     $('#form-error').text('An error occurred. Please try again.').show();
                 }
-            },
-            error: function(xhr) {
-                $('#form-error').text('An error occurred. Please try again.').show();
             }
         });
     });
@@ -852,24 +947,35 @@ $generations = \App\Models\Generations::where(['is_active' => 1])->get();
         });
     });
 
-    //Add Member    
+    //Add Member
     $('#addnewtree').on('show.bs.modal', function(event) {
         var button = $(event.relatedTarget);
         var memberId = button.data('id');
         var parent_id = button.data('parent-id');
         var modal = $(this);
+
+        // Reset relation type dropdown so previous selection / disabled state never leaks across opens
+        var relationSelect = modal.find('.modal-body select[name="type"]');
+        relationSelect.find('option').prop('disabled', false);
+
         if (parent_id == undefined) {
+            // No card was clicked: this is the first/root member of the tree
             modal.find('.modal-body #self_id').val(0);
+            // Force the new member to be the root (Parent) and lock the choice
+            relationSelect.find('option').prop('disabled', true);
+            relationSelect.find('option[value="4"]').prop('disabled', false).prop('selected', true);
         } else {
+            // Adding relative of an existing member
             modal.find('.modal-body #self_id').val(memberId);
-            if (parent_id > 0) {
-                modal.find('.modal-body select[name="type"] option[value="4"]').prop('disabled', true);
-                modal.find('.modal-body select[name="type"] option[value="1"]').prop('selected', true);
-            } else {
-                modal.find('.modal-body select[name="type"] option[value="4"]').prop('disabled', false);
+            // "Parent" (type 4) is only valid when no root exists yet, so disable it here
+            relationSelect.find('option[value="4"]').prop('disabled', true);
+            // Let the user freely pick the actual relation; do not pre-force "Child"
+            relationSelect.prop('selectedIndex', 0);
+            // If the first option is now disabled (Parent), move to the next enabled one
+            if (relationSelect.find('option:selected').is(':disabled')) {
+                relationSelect.find('option:not(:disabled)').first().prop('selected', true);
             }
         }
-
     });
 </script>
 <script>

@@ -286,11 +286,14 @@
                                                              {{ __('messages.Edit') }}
                                                         </button>
 
-                                                        {{-- <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal"
-                                                            data-bs-target="#deleteConfirmationModal"
-                                                            data-id="{{ $FamilyTree->id }}" onclick="setDeleteId(this)">
-                                                            <i class="bi bi-trash"></i> Delete
-                                                        </button> --}}
+                                                        <button class="btn btn-sm btn-outline-danger"
+                                                            data-toggle="modal"
+                                                            data-target="#deleteConfirmationModal"
+                                                            data-id="{{ $FamilyTree->family->id }}"
+                                                            data-familyid="{{ $FamilyTree->family->familyid }}"
+                                                            onclick="setDeleteId(this)">
+                                                            {{ __('messages.Delete') }}
+                                                        </button>
                                                     </div>
                                                 </td>
                                             </tr>
@@ -360,8 +363,15 @@
 
                                     <div class="col-md-4 mt-2">
                                         <label class="form-label mont-font fw-600 font-xsss"> {{ __('messages.Family Id:') }}</label>
-                                        <input type="text" class="form-control" placeholder="{{ __('messages.Enter Family Id') }}"
-                                            name="family_id" required />
+                                        <input type="text"
+                                            class="form-control"
+                                            placeholder="12345-1234567-1"
+                                            name="family_id"
+                                            id="family_id_cnic"
+                                            inputmode="numeric"
+                                            maxlength="15"
+                                            pattern="^\d{5}-\d{7}-\d{1}$"
+                                            required />
                                     </div>
                                     
                                 </div><br>
@@ -534,24 +544,64 @@
                 </h5>
             </div>
             <div class="modal-body">
-                <p>Are you sure you want to delete this family tree?</p>
+                <p>
+                    Are you sure you want to delete this family tree
+                    <strong id="deleteFamilyLabel"></strong>?
+                </p>
             </div>
             <div class="modal-footer">
 
-                <button type="button" id="confirmDelete" class="btn btn-danger">Delete</button>
+                <button type="button" id="confirmDelete" class="btn btn-danger" onclick="confirmDeleteFamilyTree()">Delete</button>
             </div>
         </div>
     </div>
 </div>
 
+<script>
+    // Keep this script NEXT to the modal so it always loads (even if the layout
+    // doesn't render @section('scripts') / @stack('scripts') on this page).
+    window.deleteId = window.deleteId || '';
+
+    function setDeleteId(element) {
+        window.deleteId = $(element).data('id') || '';
+        const familyLabel = $(element).data('familyid') || '';
+        $('#deleteFamilyLabel').text(familyLabel ? `(${familyLabel})` : '');
+    }
+
+    function confirmDeleteFamilyTree() {
+        if (!window.deleteId) {
+            alert('Missing family id. Please close and try again.');
+            return;
+        }
+
+        $('#confirmDelete').prop('disabled', true).text('Deleting...');
+
+        $.ajax({
+            url: "{{ route('user.familytreedelete') }}",
+            method: 'POST',
+            data: {
+                id: window.deleteId,
+                _token: '{{ csrf_token() }}'
+            },
+            success: function() {
+                $('#deleteConfirmationModal').modal('hide');
+                location.reload();
+            },
+            error: function(xhr) {
+                let msg = 'An error occurred while deleting the family tree. Please try again.';
+                if (xhr.responseJSON && xhr.responseJSON.message) msg = xhr.responseJSON.message;
+                alert(msg);
+                $('#confirmDelete').prop('disabled', false).text('Delete');
+            }
+        });
+    }
+</script>
+
 @section('scripts')
     <script>
         // Move the setDeleteId function to the top
-        var deleteId = '';
-
-        function setDeleteId(element) {
-            deleteId = $(element).data('id');
-        }
+        // NOTE: setDeleteId/confirmDeleteFamilyTree are defined above (outside sections)
+        // so they always exist. Keep the rest of this section for page-specific handlers.
 
         function editfamilytree(element) {
             var id = $(element).data('id');
@@ -610,30 +660,6 @@
                     }
                 });
             });
-            $('#confirmDelete').on('click', function() {
-                $('#confirmDelete').prop('disabled', true).html(
-                    '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Deleting...'
-                );
-
-                $.ajax({
-                    url: "{{ route('user.familytreedelete') }}", // Add the correct route
-                    method: 'POST',
-                    data: {
-                        id: deleteId,
-                        _token: '{{ csrf_token() }}'
-                    },
-                    success: function(response) {
-                        $('#deleteConfirmationModal').modal('hide');
-                        location.reload();
-                    },
-                    error: function(xhr) {
-                        alert(
-                            'An error occurred while deleting the family tree. Please try again.'
-                        );
-                        $('#confirmDelete').prop('disabled', false).html('Delete');
-                    }
-                });
-            });
         });
     </script>
      <script>
@@ -669,3 +695,33 @@
         });
     </script>
 @endsection
+
+@push('scripts')
+<script>
+    // CNIC input formatter: 12345-1234567-1
+    (function() {
+        const el = document.getElementById('family_id_cnic');
+        if (!el) return;
+
+        function formatCNIC(value) {
+            const digits = (value || '').replace(/\D/g, '').slice(0, 13);
+            const p1 = digits.slice(0, 5);
+            const p2 = digits.slice(5, 12);
+            const p3 = digits.slice(12, 13);
+            let out = p1;
+            if (p2.length) out += '-' + p2;
+            if (p3.length) out += '-' + p3;
+            return out;
+        }
+
+        el.addEventListener('input', () => {
+            const start = el.selectionStart;
+            const before = el.value;
+            el.value = formatCNIC(el.value);
+            // Best-effort cursor preservation
+            const delta = el.value.length - before.length;
+            if (typeof start === 'number') el.setSelectionRange(start + delta, start + delta);
+        });
+    })();
+</script>
+@endpush

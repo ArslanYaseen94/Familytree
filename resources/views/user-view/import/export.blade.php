@@ -8,6 +8,26 @@
                 <form method="POST" action="{{ route('export.members') }}">
                     @csrf
                     <div class="row g-3">
+                        <!-- Export Scope -->
+                        <div class="col-12 col-md-6 col-lg-4">
+                            <label>{{ __('messages.Export Scope') }}</label>
+                            <select name="export_scope" id="export_scope" class="form-control" required>
+                                <option value="one">{{ __('messages.One Family') }}</option>
+                                <option value="all">{{ __('messages.All My Families') }}</option>
+                            </select>
+                        </div>
+
+                        <!-- Family Selector -->
+                        <div class="col-12 col-md-6 col-lg-4" id="family_selector">
+                            <label>{{ __('messages.Select Family') }}</label>
+                            <select name="family_tree_id" class="form-control">
+                                <option value="">{{ __('messages.Select Family') }}</option>
+                                @foreach(($families ?? []) as $family)
+                                    <option value="{{ $family->id }}">{{ $family->familyid }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+
                         <!-- Filter Type -->
                         <div class="col-12 col-md-6 col-lg-4">
                             <label>{{ __('messages.Filter Type') }}</label>
@@ -57,6 +77,13 @@
 </div>
 
 <script>
+    document.getElementById('export_scope').addEventListener('change', function() {
+        const scope = this.value;
+        const familySelector = document.getElementById('family_selector');
+        if (!familySelector) return;
+        familySelector.style.display = scope === 'one' ? 'block' : 'none';
+    });
+
     document.getElementById('filter_type').addEventListener('change', function() {
         const type = this.value;
         document.querySelectorAll('.id-range, .date-range').forEach(el => el.style.display = 'none');

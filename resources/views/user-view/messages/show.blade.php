@@ -5,8 +5,8 @@
         <div>
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb">
-                    <li class="breadcrumb-item"><a href="{{ route('admin.dashboard') }}">Dashboard</a></li>
-                    <li class="breadcrumb-item"><a href="{{ route('admin.messages.create') }}">Messages</a></li>
+                    <li class="breadcrumb-item"><a href="{{ route('user.dashboard') }}">Dashboard</a></li>
+                    <li class="breadcrumb-item"><a href="{{ route('user.messageboard') }}">Messages</a></li>
                     <li class="breadcrumb-item active" aria-current="page">View Ticket</li>
                 </ol>
             </nav>
@@ -58,7 +58,7 @@
                         <h5>{{ __("messages.Send a Reply") }}</h5>
                     </div>
                     <div class="card-body">
-                        <form method="POST" action="{{ route('admin.messages.reply', $message->id) }}">
+                        <form method="POST" action="{{ route('user.messages.reply', $message->id) }}">
                             @csrf
                             <div class="form-group mb-3">
                                 <textarea name="reply_body" class="form-control" rows="5" placeholder=" {{ __("messages.Type your reply here...") }}" required></textarea>
